@@ -1,0 +1,124 @@
+<?php
+
+class IndexAction extends Action {
+    
+	
+	public function index(){
+		
+		if(!$_SESSION) {
+			redirect('Index/login');
+		}
+		$userinfo = array('username' => $_SESSION['admin']['username'],
+			'rolename' => $_SESSION['admin']['rolename']);
+		$this->assign('userinfo', $userinfo);
+
+		$config = 'config';
+		$this->assign('id', $config);
+		echo GROUP_NAME;
+		$this->display();
+	}
+
+
+	//左侧导航栏
+    public function left(){
+    	$this->display();
+    }
+
+	
+	public function login() {
+	
+		if(IS_POST) {
+			$username = I('username', 'trim');
+			$password = I('password', 'trim');
+
+			/*
+			$data = array(
+				'username' => $username,
+				'password' => md5($password),
+				'role_id' => 1,
+				'last_ip' => get_client_ip(),
+				'last_time' => time(), 
+				'status' => 1,
+				'email' => 'lurma@qq.com',
+				
+			);
+			
+			M('admin')->add($data);
+
+			*/
+
+			$db = M('admin');
+
+			$admin = $db->where(array('username' => $username, 'status' => 1))->find();
+		
+			if(!$admin) {
+				$this->error('用户不存在', U('Index/login'));
+			} 
+			
+			if($admin['password'] != md5($password)) {
+				$this->error('密码错误', U('Index/login'));
+			}
+			
+			$session = array(
+				'id' => $admin['id'],
+				'role_id' => $admin['role_id'],
+				'role_name' => $db->where(array('id' => $admin['role_id']))->getField('name'),
+				'username' => $admin['username'],
+				'token' => md5($username.md5($password)),
+				'last_time' => date('Y-m-d H:i:s', $admin['last_time']),
+				'last_ip' => get_client_ip(),
+			);
+
+			// 保存cookie，时效为10天
+			cookie('admin', $session, array('expire' => 3600*24*10));
+			
+			// 保存session
+			session('admin', $session);
+			
+			$data = array(
+				'id' => $admin['id'],
+				'last_time' => time(),
+				'last_ip' => get_client_ip()
+			);
+			
+			$db->save($data);
+
+			p($_SESSION);
+			die;
+			//M('admin')->where(array('id' => $admin['id']))->save(array('last_time' => time(), 'last_ip' //=> get_client_ip()));
+			
+			$this->success('登陆成功', U('Index/index'));
+		
+		
+		} else {
+			$this->display();
+		}
+	}
+
+	public function logout() {
+		cookie('admin', null);
+		session('admin', null);
+		$this->success('注销成功', U('Index/login')); 
+	}
+	
+
+	//系统环境信息
+    public function main(){
+    	$server_info = array(
+    		'CMS版本'=>C('cms_versions'),
+    		'操作系统'=>PHP_OS,
+    		'运行环境'=>$_SERVER["SERVER_SOFTWARE"],
+    		'PHP运行方式'=>php_sapi_name(),
+    		'最大上传限制'=>ini_get('upload_max_filesize'),
+    		'最大执行时间'=>ini_get('max_execution_time').'秒',
+    		'服务器时间'=>date("Y年n月j日 H:i:s"),
+    		//'北京时间'=>gmdate("Y年n月j日 H:i:s",time()+8*3600),
+    		'服务器域名/IP'=>$_SERVER['SERVER_NAME'].' ['.gethostbyname($_SERVER['SERVER_NAME']).']',
+    		'剩余空间'=>round((@disk_free_space(".")/(1024*1024)),2).'M',
+    	);
+    	$this->assign('server_info',$server_info);
+    	$this->display();
+    } 
+
+
+}
